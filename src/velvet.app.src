@@ -1,0 +1,16 @@
+%%-*- mode: erlang -*-
+{application, velvet,
+ [
+  {description, "velvet"},
+  {vsn, "1.0.0"},
+  {modules, []},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  inets,
+                  crypto,
+                  lager
+                 ]},
+  {env, []}
+ ]}.

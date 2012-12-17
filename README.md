@@ -1,4 +1,4 @@
-velvet
+Velvet
 ======
 
 Client library for Stanchion

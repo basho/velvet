@@ -14,8 +14,10 @@
          list_buckets/3,
          list_buckets/4,
          ping/3,
-         set_bucket_acl/6
-         %% @TODO update_bucket/3
+         set_bucket_acl/6,
+         set_bucket_policy/6,
+         delete_bucket_policy/5
+         % @TODO: update_bucket/3
         ]).
 
 %% @TODO Remove after module development is completed
@@ -153,17 +155,77 @@ ping(Ip, Port, Ssl) ->
 
 %% @doc Create a bucket for a requesting party.
 -spec set_bucket_acl(string(),
-                     pos_integer(),
+                     inet:port_number(),
                      binary(),
                      string(),
                      string(),
                      [{atom(), term()}]) -> ok | {error, term()}.
 set_bucket_acl(Ip, Port, Bucket, ContentType, AclDoc, Options) ->
+    Path = buckets_path(Bucket, acl),
+    update_bucket(Ip, Port, Path, ContentType, AclDoc, Options, 204).
+
+%% @doc Create a bucket for a requesting party.
+-spec set_bucket_policy(string(),
+                        inet:port_number(),
+                        binary(),
+                        string(),
+                        string(),
+                        proplists:proplist()) -> ok | {error, term()}.
+set_bucket_policy(Ip, Port, Bucket, ContentType, PolicyDoc, Options) ->
+    Path = buckets_path(Bucket, policy),
+    update_bucket(Ip, Port, Path, ContentType, PolicyDoc, Options, 204).
+
+%% @doc Delete a bucket. The bucket must be owned by
+%% the requesting party.
+-spec delete_bucket_policy(string(),
+                           pos_integer(),
+                           binary(),
+                           string(),
+                           [{atom(), term()}]) -> ok | {error, term()}.
+delete_bucket_policy(Ip, Port, Bucket, Requester, Options) ->
     Ssl = proplists:get_value(ssl, Options, true),
     AuthCreds = proplists:get_value(auth_creds, Options, no_auth_creds),
-    Path = buckets_path(Bucket, true),
+    QS = requester_qs(Requester),
+    Path = buckets_path(Bucket, policy),
+    Url = url(Ip, Port, Ssl, stringy(Path ++ QS)),
+    Headers0 = [{"Date", httpd_util:rfc1123_date()}],
+    case AuthCreds of
+        {_, _} ->
+            Headers =
+                [{"Authorization", auth_header('DELETE',
+                                               [],
+                                               Headers0,
+                                               Path,
+                                               AuthCreds)} |
+                 Headers0];
+        no_auth_creds ->
+            Headers = Headers0
+    end,
+    case request(delete, Url, [204], Headers) of
+        {ok, {{_, 204, _}, _RespHeaders, _}} ->
+            ok;
+        {error, {ok, {{_, StatusCode, Reason}, _RespHeaders, RespBody}}} ->
+            {error, {error_status, StatusCode, Reason, RespBody}};
+        {error, Error} ->
+            {error, Error}
+    end.
+
+
+%% ===================================================================
+%% Internal functions
+%% ===================================================================
+
+% @doc send request to stanchion server
+% @TODO merge with create_bucket, create_user, delete_bucket
+-spec update_bucket(string(), inet:port_number(), string(),
+                    string(), string(), proplists:proplist(),
+                    pos_integer()) ->
+                           ok | {error, term()}.
+update_bucket(Ip, Port, Path, ContentType, Doc, Options, Expect) ->
+    AuthCreds = proplists:get_value(auth_creds, Options, no_auth_creds),
+    Ssl = proplists:get_value(ssl, Options, true),
     Url = url(Ip, Port, Ssl, Path),
-    Headers0 = [{"Content-Md5", content_md5(AclDoc)},
+    Headers0 = [{"Content-Md5", content_md5(Doc)},
                 {"Date", httpd_util:rfc1123_date()}],
     case AuthCreds of
         {_, _} ->
@@ -177,18 +239,14 @@ set_bucket_acl(Ip, Port, Bucket, ContentType, AclDoc, Options) ->
         no_auth_creds ->
             Headers = Headers0
     end,
-    case request(put, Url, [204], ContentType, Headers, AclDoc) of
-        {ok, {{_, 204, _}, _RespHeaders, _RespBody}} ->
+    case request(put, Url, [Expect], ContentType, Headers, Doc) of
+        {ok, {{_, Expect, _}, _RespHeaders, _RespBody}} ->
             ok;
         {error, {ok, {{_, StatusCode, Reason}, _RespHeaders, RespBody}}} ->
             {error, {error_status, StatusCode, Reason, RespBody}};
         {error, Error} ->
             {error, Error}
     end.
-
-%% ===================================================================
-%% Internal functions
-%% ===================================================================
 
 %% @doc Assemble the root URL for the given client
 -spec root_url(string(), pos_integer(), boolean()) -> [string()].
@@ -210,15 +268,15 @@ stats_url(Ip, Port, Ssl) ->
 %% @doc Assemble the path for a bucket request
 -spec buckets_path(binary()) -> string().
 buckets_path(Bucket) ->
-    buckets_path(Bucket, false).
+    stringy(["/buckets",
+             ["/" ++ binary_to_list(Bucket) || Bucket /= <<>>]]).
 
 %% @doc Assemble the path for a bucket request
--spec buckets_path(binary(), boolean()) -> string().
-buckets_path(Bucket, AclRequest) ->
-    stringy(["/buckets",
-             ["/" ++ binary_to_list(Bucket) || Bucket /= <<>>],
-             ["/acl" || AclRequest == true]
-            ]).
+-spec buckets_path(binary(), acl|policy) -> string().
+buckets_path(Bucket, acl) ->
+    stringy([buckets_path(Bucket), "/acl"]);
+buckets_path(Bucket, policy) ->
+    stringy([buckets_path(Bucket), "/policy"]).
 
 %% @doc Assemble the URL for a buckets request
 -spec url(string(), pos_integer(), boolean(), [string()]) ->

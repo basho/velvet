@@ -2,7 +2,7 @@
 {application, velvet,
  [
   {description, "velvet"},
-  {vsn, "1.0.0"},
+  {vsn, "1.3.0"},
   {modules, []},
   {registered, []},
   {applications, [

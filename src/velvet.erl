@@ -282,7 +282,7 @@ stats_url(Ip, Port, Ssl) ->
 %% @doc Assemble the path for a bucket request
 -spec buckets_path(binary()) -> string().
 buckets_path(Bucket) ->
-    stringy(["/buckets",
+    stringy(["/stanchion/buckets",
              ["/" ++ binary_to_list(Bucket) || Bucket /= <<>>]]).
 
 %% @doc Assemble the path for a bucket request

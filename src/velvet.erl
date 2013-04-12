@@ -382,7 +382,7 @@ requester_qs(Requester) ->
 %% @doc Assemble the path for a users request
 -spec users_path(string()) -> [string()].
 users_path(User) ->
-    stringy(["/users",
+    stringy(["/stanchion/users",
              ["/" ++ User || User /= []]
             ]).
 

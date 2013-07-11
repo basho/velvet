@@ -30,7 +30,8 @@
          ping/3,
          set_bucket_acl/6,
          set_bucket_policy/6,
-         delete_bucket_policy/5
+         delete_bucket_policy/5,
+         update_user/6
          % @TODO: update_bucket/3
         ]).
 
@@ -224,6 +225,40 @@ delete_bucket_policy(Ip, Port, Bucket, Requester, Options) ->
             {error, Error}
     end.
 
+%% @doc Update a user record
+-spec update_user(string(),
+                  pos_integer(),
+                  string(),
+                  string(),
+                  string(),
+                  [{atom(), term()}]) -> ok | {error, term()}.
+update_user(Ip, Port, ContentType, KeyId, UserDoc, Options) ->
+    Ssl = proplists:get_value(ssl, Options, true),
+    AuthCreds = proplists:get_value(auth_creds, Options, no_auth_creds),
+    Path = users_path(KeyId),
+    Url = url(Ip, Port, Ssl, Path),
+    Headers0 = [{"Content-Md5", content_md5(UserDoc)},
+                {"Date", httpd_util:rfc1123_date()}],
+    case AuthCreds of
+        {_, _} ->
+            Headers =
+                [{"Authorization", auth_header('PUT',
+                                               ContentType,
+                                               Headers0,
+                                               Path,
+                                               AuthCreds)} |
+                 Headers0];
+        no_auth_creds ->
+            Headers = Headers0
+    end,
+    case request(put, Url, [204], ContentType, Headers, UserDoc) of
+        {ok, {{_, 204, _}, _RespHeaders, _RespBody}} ->
+            ok;
+        {error, {ok, {{_, StatusCode, Reason}, _RespHeaders, RespBody}}} ->
+            {error, {error_status, StatusCode, Reason, RespBody}};
+        {error, Error} ->
+            {error, Error}
+    end.
 
 %% ===================================================================
 %% Internal functions

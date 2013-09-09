@@ -87,8 +87,9 @@ request_signature(HttpVerb, RawHeaders, Path, KeyData) ->
            Date,
            BashoHeaders,
            Path],
+
     base64:encode_to_string(
-      crypto:sha_mac(KeyData, STS)).
+      stanchion_utils:sha_mac(KeyData, STS)).
 
 %% ===================================================================
 %% Internal functions
@@ -125,7 +126,7 @@ signature(KeyData, RD) ->
            BashoHeaders,
            Resource],
     base64:encode_to_string(
-      crypto:sha_mac(KeyData, STS)).
+      stanchion_utils:sha_mac(KeyData, STS)).
 
 check_auth(PresentedSignature, CalculatedSignature) ->
     PresentedSignature == CalculatedSignature.

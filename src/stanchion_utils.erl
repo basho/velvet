@@ -23,7 +23,7 @@
 -module(stanchion_utils).
 
 %% Public API
--export([get_admin_creds/0]).
+-export([get_admin_creds/0, sha_mac/2, md5/1]).
 
 %% @doc Return the credentials of the admin user
 -spec get_admin_creds() -> {ok, {string(), string()}} | {error, term()}.
@@ -41,3 +41,13 @@ get_admin_creds() ->
             _ = lager:warning("The admin user's key id has not been defined."),
             {error, key_id_undefined}
     end.
+
+-ifdef(new_hash).
+sha_mac(KeyData, STS) ->
+    crypto:hmac(sha, KeyData, STS).
+md5(Bin) -> crypto:hash(md5, Bin).
+-else.
+sha_mac(KeyData, STS) ->
+    crypto:sha_mac(KeyData, STS).
+md5(Bin) -> crypto:md5(Bin).
+-endif.

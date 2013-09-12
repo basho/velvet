@@ -415,7 +415,7 @@ requester_qs(Requester) ->
         mochiweb_util:quote_plus(Requester).
 
 %% @doc Assemble the path for a users request
--spec users_path(string()) -> [string()].
+-spec users_path(string()) -> string().
 users_path(User) ->
     stringy(["/users",
              ["/" ++ User || User /= []]

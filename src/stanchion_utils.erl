@@ -48,6 +48,6 @@ sha_mac(KeyData, STS) ->
 md5(Bin) -> crypto:hash(md5, Bin).
 -else.
 sha_mac(KeyData, STS) ->
-    crypto:sha_mac(KeyData, STS).
-md5(Bin) -> crypto:md5(Bin).
+    crypto:hmac(sha, KeyData, STS).
+md5(Bin) -> crypto:hash(md5, Bin).
 -endif.

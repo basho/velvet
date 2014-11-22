@@ -31,7 +31,8 @@
          set_bucket_acl/6,
          set_bucket_policy/6,
          delete_bucket_policy/5,
-         update_user/6
+         update_user/6,
+         update_bucket/7
          % @TODO: update_bucket/3
         ]).
 
@@ -273,9 +274,13 @@ update_user(Ip, Port, ContentType, KeyId, UserDoc, Options) ->
 update_bucket(Ip, Port, Path, ContentType, Doc, Options, Expect) ->
     AuthCreds = proplists:get_value(auth_creds, Options, no_auth_creds),
     Ssl = proplists:get_value(ssl, Options, true),
+    Hdr = proplists:get_value(header, Options, []),
+
     Url = url(Ip, Port, Ssl, Path),
+            lager:debug("here >>>>>>>>"),
+
     Headers0 = [{"Content-Md5", content_md5(Doc)},
-                {"Date", httpd_util:rfc1123_date()}],
+                {"Date", httpd_util:rfc1123_date()}] ++ Hdr,
     case AuthCreds of
         {_, _} ->
             Headers =

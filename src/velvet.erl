@@ -30,7 +30,7 @@
          ping/3,
          set_bucket_acl/6,
          set_bucket_policy/6,
-         delete_bucket_policy/5,
+         delete_bucket_property/6,
          update_user/6,
          update_bucket/7
          % @TODO: update_bucket/3
@@ -193,29 +193,29 @@ set_bucket_policy(Ip, Port, Bucket, ContentType, PolicyDoc, Options) ->
 
 %% @doc Delete a bucket. The bucket must be owned by
 %% the requesting party.
--spec delete_bucket_policy(string(),
-                           pos_integer(),
-                           binary(),
-                           string(),
-                           [{atom(), term()}]) -> ok | {error, term()}.
-delete_bucket_policy(Ip, Port, Bucket, Requester, Options) ->
+-spec delete_bucket_property(policy | lifecycle, string(),
+                             pos_integer(),
+                             binary(),
+                             string(),
+                             [{atom(), term()}]) -> ok | {error, term()}.
+delete_bucket_property(Property, Ip, Port, Bucket, Requester, Options)
+  when Property =:= policy orelse Property =:= lifecycle ->
     Ssl = proplists:get_value(ssl, Options, true),
     AuthCreds = proplists:get_value(auth_creds, Options, no_auth_creds),
     QS = requester_qs(Requester),
-    Path = buckets_path(Bucket, policy),
+    Path = buckets_path(Bucket, Property),
     Url = url(Ip, Port, Ssl, stringy(Path ++ QS)),
     Headers0 = [{"Date", httpd_util:rfc1123_date()}],
-    case AuthCreds of
-        {_, _} ->
-            Headers =
-                [{"Authorization", auth_header('DELETE',
-                                               [],
-                                               Headers0,
-                                               Path,
-                                               AuthCreds)} |
-                 Headers0];
-        no_auth_creds ->
-            Headers = Headers0
+    Headers = case AuthCreds of
+                  {_, _} ->
+                      [{"Authorization", auth_header('DELETE',
+                                                     [],
+                                                     Headers0,
+                                                     Path,
+                                                     AuthCreds)} |
+                       Headers0];
+                  no_auth_creds ->
+                      Headers0
     end,
     case request(delete, Url, [204], Headers) of
         {ok, {{_, 204, _}, _RespHeaders, _}} ->
@@ -329,6 +329,8 @@ buckets_path(Bucket) ->
 -spec buckets_path(binary(), acl|policy) -> string().
 buckets_path(Bucket, acl) ->
     stringy([buckets_path(Bucket), "/acl"]);
+buckets_path(Bucket, lifecycle) ->
+    stringy([buckets_path(Bucket), "/lifecycle"]);
 buckets_path(Bucket, policy) ->
     stringy([buckets_path(Bucket), "/policy"]).
 
